@@ -1,4 +1,5 @@
 using ApiTarefas.Contexto;
+using ApiTarefas.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -38,6 +39,9 @@ builder.Services.AddCors(
 );
 var app = builder.Build();
 
+Gerador.GerarChave();
+DotNetEnv.Env.Load();
+builder.Configuration.AddEnvironmentVariables();
 app.UseCors();
 app.UseRouting();
 
