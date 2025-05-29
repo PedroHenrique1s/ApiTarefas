@@ -10,6 +10,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 
+//Pedro Souza 20223633
+//Pedro Schiabel 20224097
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers().ConfigureApiBehaviorOptions(
