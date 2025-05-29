@@ -83,6 +83,8 @@ builder.Services.AddCors(
         policy => policy.SetIsOriginAllowed(origin => origin == "http://localhost:4200" || origin is null).AllowAnyMethod().AllowAnyHeader()
     )
 );
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 var app = builder.Build();
 
 Gerador.GerarChave();
@@ -106,7 +108,8 @@ app.UseStatusCodePages(
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
 app.UseHttpsRedirection();
