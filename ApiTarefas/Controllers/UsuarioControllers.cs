@@ -8,6 +8,7 @@ using System.Security.Claims;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 
 [ApiController]
 [Route("[controller]")]
@@ -16,7 +17,11 @@ public class UsuariosController(BancoDados Banco, IConfiguration Configuracoes) 
     [HttpGet]
     public ActionResult ListarUsuarios()
     {
-        List<Usuario> lista = [.. Banco.TabelaUsuario.OrderBy(u => u.Nome)];
+        var lista = Banco.TabelaUsuario
+            .Include(u => u.ListaTarefas) // traz as tarefas associadas
+            .OrderBy(u => u.Nome)
+            .ToList();
+
         if (lista.Count > 0) return Ok(lista);
         return NotFound();
     }
