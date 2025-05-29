@@ -13,6 +13,6 @@ public class Tarefas
     [Range(0, 1, ErrorMessage = "Status deve ser 0 (Pendente) ou 1 (Concluído)")]
     public int Status { get; set; }
     public int UsuarioId { get; set; }
-
+    [JsonIgnore]
     public virtual Usuario? Usuario {get; set;}
 }
