@@ -8,6 +8,7 @@ using System.Security.Claims;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 
 [ApiController]
 [Route("[controller]")]
@@ -18,10 +19,18 @@ public class TarefasController(BancoDados Banco) : ControllerBase
     [HttpGet]
     public ActionResult ListarTarefas()
     {
-        List<object> lista = [..Banco.TabelaTarefas.OrderBy(c => c.Id).ToList().Select(c => new{
-            c.Descricao,
-            c.Status,
-        })];
+        var lista = Banco.TabelaTarefas
+            .Include(t => t.Usuario)
+            .OrderBy(t => t.Id)
+            .Select(t => new {
+                t.Descricao,
+                t.Status,
+                Usuario = new {
+                    t.Usuario!.Nome,
+                    t.Usuario.Email
+                }
+            })
+            .ToList();
 
         if (lista.Count > 0) return Ok(lista);
         return NotFound();
@@ -30,7 +39,19 @@ public class TarefasController(BancoDados Banco) : ControllerBase
     [HttpGet("{id}")]
     public IActionResult BuscarTarefa(int id)
     {
-        Tarefas? tarefa = Banco.TabelaTarefas.SingleOrDefault(c => c.Id == id);
+        var tarefa = Banco.TabelaTarefas
+            .Include(t => t.Usuario)
+            .Where(t => t.Id == id)
+            .Select(t => new {
+                t.Descricao,
+                t.Status,
+                Usuario = new {
+                    t.Usuario!.Nome,
+                    t.Usuario.Email
+                }
+            })
+            .FirstOrDefault();
+
         if (tarefa == null) return NotFound();
         return Ok(tarefa);
     }
@@ -40,7 +61,7 @@ public class TarefasController(BancoDados Banco) : ControllerBase
     {
         Banco.TabelaTarefas.Add(model);
         Banco.SaveChanges();
-        return Ok(new { Mensagem = "Categoria cadastrada com sucesso" });
+        return Ok(new { Mensagem = "Tarefa cadastrada com sucesso" });
     }
 
     [HttpPut("{id}")]
@@ -48,11 +69,15 @@ public class TarefasController(BancoDados Banco) : ControllerBase
     {
         Tarefas? tarefa = Banco.TabelaTarefas.SingleOrDefault(c => c.Id == id);
         if (tarefa == null) return NotFound();
-        Banco.Entry(tarefa).State =
-        Microsoft.EntityFrameworkCore.EntityState.Detached;
-        model.Id = id;
-        Banco.TabelaTarefas.Update(model);
-        return Ok(new { Mensagem = "Categoria atualizada com sucesso" });
+
+        // Atualiza apenas os campos necessários
+        tarefa.Descricao = model.Descricao;
+        tarefa.Status = model.Status;
+        tarefa.UsuarioId = model.UsuarioId;
+
+        Banco.SaveChanges();
+
+        return Ok(new { Mensagem = "Tarefa atualizada com sucesso" });
     }
 
     [HttpDelete("{id}")]
@@ -62,6 +87,6 @@ public class TarefasController(BancoDados Banco) : ControllerBase
         if (tarefa == null) return NotFound();
         Banco.Remove(tarefa);
         Banco.SaveChanges();
-        return Ok(new{ Mensagem = "Categoria excluída e seus produtos foram excluídos" });
+        return Ok(new{ Mensagem = "Tarefa excluída com sucesso" });
     }
 }
