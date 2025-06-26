@@ -20,14 +20,17 @@ public class Usuario
     public string? Senha { get; set; }
 
     public virtual List<Tarefas>? ListaTarefas { get; set; }
+    
+    public string? RefreshToken { get; set; }
+    public DateTime? RefreshTokenExpiracao { get; set; }
 
     public static ValidationResult ValidarNomeUsuario(string nome, ValidationContext context)
     {
         BancoDados banco = context.GetServices<BancoDados>().First();
         IHttpContextAccessor acessor = context.GetRequiredService<IHttpContextAccessor>();
         RouteValueDictionary dadosRota = acessor.HttpContext!.GetRouteData().Values;
-        int id = (dadosRota != null && dadosRota.TryGetValue("id", out var numero) && numero != null) ? Convert.ToInt32(numero): 0;
-        if((id == 0 && banco.TabelaUsuario.Any(u => u.Nome == nome)) || (id > 0 && banco.TabelaUsuario.Any(u => u.Nome == nome && u.Id != id))) return new ValidationResult("Já existe um usuário com o nome informado");
+        int id = (dadosRota != null && dadosRota.TryGetValue("id", out var numero) && numero != null) ? Convert.ToInt32(numero) : 0;
+        if ((id == 0 && banco.TabelaUsuario.Any(u => u.Nome == nome)) || (id > 0 && banco.TabelaUsuario.Any(u => u.Nome == nome && u.Id != id))) return new ValidationResult("Já existe um usuário com o nome informado");
         return ValidationResult.Success!;
     }
 
