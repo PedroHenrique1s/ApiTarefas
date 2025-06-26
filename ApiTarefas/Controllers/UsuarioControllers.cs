@@ -9,6 +9,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Cryptography;
 
 [ApiController]
 [Route("[controller]")]
@@ -57,14 +58,63 @@ public class UsuariosController(BancoDados Banco, IConfiguration Configuracoes) 
         return token;
     }
 
+    string GerarRefreshToken()
+    {
+        return Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
+    }
+
     [HttpPost("/login")]
     public ActionResult FazerLogin(Login model)
     {
-        Usuario? user = Banco.TabelaUsuario.SingleOrDefault(u => u.Email == model.Email && u.Senha == model.Senha);
-        if (user == null) return NotFound(new { Mensagem = "E=mail e/ou senha incorretos" });
+        var user = Banco.TabelaUsuario.SingleOrDefault(u => u.Email == model.Email && u.Senha == model.Senha);
+
+        if (user == null) return NotFound(new { Mensagem = "E-mail e/ou senha incorretos" });
+
+        string accessToken = GerarToken(user);
+        string refreshToken = GerarRefreshToken();
+        DateTime refreshExp = DateTime.UtcNow.AddDays(7);
+
+        user.RefreshToken = refreshToken;
+        user.RefreshTokenExpiracao = refreshExp;
+        Banco.SaveChanges();
+
+        // Retornando apenas os dados que você quer expor do usuário
+        var userResponse = new
+        {
+            id = user.Id,
+            email = user.Email
+        };
+
         return Ok(new
         {
-            Token = GerarToken(user)
+            token = accessToken,
+            refreshToken = refreshToken,
+            user = userResponse
+        });
+    }
+
+    [HttpPost("/refresh-token")]
+    public ActionResult RenovarToken([FromBody] RefreshTokenRequest body)
+    {
+        string? refreshToken = body?.RefreshToken;
+
+        if (string.IsNullOrEmpty(refreshToken)) return BadRequest(new { Mensagem = "Refresh token não informado" });
+
+        Usuario? user = Banco.TabelaUsuario.SingleOrDefault(u => u.RefreshToken == refreshToken && u.RefreshTokenExpiracao > DateTime.UtcNow);
+
+        if (user is null) return Unauthorized(new { Mensagem = "Refresh token inválido ou expirado" });
+
+        string novoAccessToken = GerarToken(user);
+        string novoRefreshToken = GerarRefreshToken();
+        user.RefreshToken = novoRefreshToken;
+        user.RefreshTokenExpiracao = DateTime.UtcNow.AddDays(7);
+
+        Banco.SaveChanges();
+
+        return Ok(new
+        {
+            Token = novoAccessToken,
+            RefreshToken = novoRefreshToken
         });
     }
 
