@@ -17,7 +17,13 @@ using Microsoft.EntityFrameworkCore;
 public class TarefasController(BancoDados Banco) : ControllerBase
 {
     [HttpGet]
-    public ActionResult ListarTarefas([FromQuery] int page = 1, [FromQuery] int pageSize = 15)
+    public ActionResult ListarTarefas(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 15,
+        [FromQuery] int? status = null,
+        [FromQuery] int? id = null,
+        [FromQuery] string? search = null
+    )
     {
         var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -29,9 +35,41 @@ public class TarefasController(BancoDados Banco) : ControllerBase
         var usuarioId = int.Parse(userIdString);
 
         var query = Banco.TabelaTarefas
-            .Where(t => t.UsuarioId == usuarioId)
+            .Where(t => t.UsuarioId == usuarioId);
+
+        // Aplica filtro por ID se fornecido
+        if (id.HasValue)
+        {
+            query = query.Where(t => t.Id == id.Value);
+        }
+
+        // Aplica filtro por status se fornecido
+        if (status.HasValue)
+        {
+            query = query.Where(t => t.Status == status.Value);
+        }
+
+        // Aplica filtro de busca geral
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchLower = search.ToLower();
+
+            // Tenta converter para número
+            bool isNumeric = int.TryParse(search, out int numero);
+
+            query = query.Where(t =>
+                (t.Descricao != null && t.Descricao.ToLower().Contains(searchLower)) ||
+                (isNumeric && (t.Id == numero || t.Status == numero))
+            );
+        }
+
+        var totalDeRegistros = query.Count();
+
+        var listaPaginada = query
             .Include(t => t.Usuario)
-            .OrderByDescending(t => t.Id) 
+            .OrderByDescending(t => t.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(t => new {
                 t.Id,
                 t.Descricao,
@@ -40,13 +78,7 @@ public class TarefasController(BancoDados Banco) : ControllerBase
                     t.Usuario!.Nome,
                     t.Usuario.Email
                 }
-            });
-
-        var totalDeRegistros = query.Count();
-
-        var listaPaginada = query
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            })
             .ToList();
 
         bool hasNext = totalDeRegistros > (page * pageSize);
